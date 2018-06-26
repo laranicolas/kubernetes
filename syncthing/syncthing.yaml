@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet 
+metadata:
+  name: db-syncthing
+  labels:
+    run: syncthing
+spec:
+  selector:
+    matchLabels:
+      run: syncthing
+  serviceName: "syncthing"
+  template:
+    metadata:
+      generateName: db-syncthing
+      labels:
+        run: syncthing
+    spec:
+      containers:
+        - image: linuxserver/syncthing
+          name: syncthing
+          resources: {}
+          volumeMounts:
+            - mountPath: "/config"
+              name: syncthing-data
+  volumeClaimTemplates:
+   - metadata:
+       name: syncthing-data
+     spec:
+       accessModes: [ "ReadWriteOnce" ]
+       storageClassName: "openebs-standalone"
+       resources:
+         requests:
+           storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: syncthing
+  name: syncthing
+spec:
+  ports:
+  - port: 8384
+    protocol: TCP
+    targetPort: 8384
+  selector:
+    run: syncthing
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    run: syncthing
+  annotations:
+    nginx.ingress.kubernetes.io/lua-resty-waf: "active"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  name: syncthing
+spec:
+  rules:
+  - host: earth-work-hour-cloth.kube.um.edu.ar
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: syncthing
+          servicePort: 8384
